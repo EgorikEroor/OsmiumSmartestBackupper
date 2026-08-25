@@ -4,6 +4,7 @@ from deep_translator import GoogleTranslator
 import ctypes
 import locale
 from ctypes import wintypes
+import sqlite3
 client_language = (locale.windows_locale.get(ctypes.windll.kernel32.GetUserDefaultUILanguage(),'en_US')).split('_')[0]
 try:
     client_button_name = GoogleTranslator(source='en',target=client_language).translate('Delete')
