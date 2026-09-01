@@ -10,13 +10,13 @@ from pathlib import Path
 def create_button():
     client_language = (locale.windows_locale.get(ctypes.windll.kernel32.GetUserDefaultUILanguage(),'en_US')).split('_')[0]
     try:
-        client_button_name = GoogleTranslator(source='en',target=client_language).translate('Delete')
+        client_button = GoogleTranslator(source='en',target=client_language).translate('Delete')
     except requests.exceptions.ConnectionError:
-        client_button_name = 'Delete'
-    with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT,fr'*\shell\{client_button_name}') as chapter_1:
+        client_button = 'Delete'
+    with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT,fr'*\shell\{client_button}') as chapter_1:
         with winreg.CreateKey(chapter_1,'command') as chapter_2:
             winreg.SetValue(chapter_2,'',winreg.REG_SZ,fr'"G:\Programming\MyApps\OSB\dist\main.exe" "%1"')
-    with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT,fr'Directory\shell\{client_button_name}') as chapter_1:
+    with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT,fr'Directory\shell\{client_button}') as chapter_1:
         with winreg.CreateKey(chapter_1,'command') as chapter_2:
             winreg.SetValue(chapter_2,'',winreg.REG_SZ,fr'"G:\Programming\MyApps\OSB\dist\main.exe" "%1"')
 path_database = Path.home() / 'AppData' / 'Local' / 'OsmiumSmartestBackupper' / 'Database'
