@@ -1,50 +1,164 @@
 import asyncio
 import tkinter
-from sqlalchemy import select
-from database import database_engine,Resources
-from tkinter import ttk
-from extract_backup_copy import extract_backup_copy
 from tkinter import filedialog
-from async_tkinter_loop import async_mainloop,async_handler
-from sqlalchemy.ext.asyncio import async_sessionmaker,AsyncSession
-async_session=async_sessionmaker(database_engine,class_=AsyncSession,expire_on_commit=False)
-def simple_choice(tree,event):
-    clicked_row=tree.identify_row(event.y)
-    if clicked_row:
-        if clicked_row in tree.selection():
-            tree.selection_remove(clicked_row)
-        else:
-            tree.selection_add(clicked_row)
-async def find_selection():
-    selected_resources = data_table.selection()
+from tkinter import ttk
+
+from async_tkinter_loop import async_handler
+from async_tkinter_loop import async_mainloop
+from sqlalchemy import select
+
+from database import Resource
+from restore import restore_backup
+from config import async_session
+
+
+def toggle_selection(
+    tree: ttk.Treeview,
+    event: tkinter.Event,
+) -> None:
+    clicked_row = tree.identify_row(event.y)
+
+    if not clicked_row:
+        return
+
+    if clicked_row in tree.selection():
+        tree.selection_remove(clicked_row)
+    else:
+        tree.selection_add(clicked_row)
+
+async def restore_selected_resources(treeview):
+    selected_resources = treeview.selection()
+
     if not selected_resources:
         return
-    askdirectory_title=('Select a directory to restore the resource' if len(selected_resources)==1 else 'Select a directory for restoring resources')
-    selected_directory=await asyncio.to_thread(filedialog.askdirectory,title=askdirectory_title)
-    if selected_directory:
-        await asyncio.gather(*[extract_backup_copy(resource_uuid=resource,directory_unloading=selected_directory) for resource in selected_resources])
 
-async def getting_resource_data():
+    if len(selected_resources) == 1:
+        dialog_title = (
+            "Select a directory to restore the resource"
+        )
+    else:
+        dialog_title = (
+            "Select a directory for restoring resources"
+        )
+
+    selected_directory = filedialog.askdirectory(title=dialog_title)
+
+    if not selected_directory:
+        return
+
+    await asyncio.gather(
+        *(
+            restore_backup(
+                resource_uuid=resource_uuid,
+                destination_directory=selected_directory,
+            )
+            for resource_uuid in selected_resources
+        )
+    )
+
+    treeview.delete(*selected_resources)
+
+
+
+async def load_resource_data(treeview):
     async with async_session() as session:
-        resource_data = (await session.execute(select(Resources))).scalars().all()
-        for data in resource_data:
-            data_table.insert('','end',iid=data.uuid,values=(data.name,data.size,data.data_delete))
-window = tkinter.Tk()
-window.title('OsmiumSmartestBackupper')
-window.configure(bg='white')
-window.state('zoomed')
-bar_menu = tkinter.Menu(window)
-bar_menu.add_command(label='Restore',command=async_handler(find_selection))
-window.config(menu=bar_menu)
-data_table = ttk.Treeview(window,columns=('Name','Size','Data Delete'),show='headings',selectmode='none')
-data_table.bind('<ButtonRelease-1>',lambda event:simple_choice(data_table,event))
-data_table.column('Name',width=100,stretch=False)
-data_table.column('Size',width=50,stretch=False)
-data_table.column('Data Delete',width=10)
-data_table.heading('Name', text='Name')
-data_table.heading('Size', text='Size')
-data_table.heading('Data Delete', text='Data Delete')
-data_table.pack(fill='both',expand=True,padx=10,pady=10)
-if __name__=='__main__':
-    window.after(0,lambda:async_handler(getting_resource_data)())
+        result = await session.execute(
+            select(Resource)
+        )
+
+        resources = result.scalars().all()
+
+        for resource in resources:
+            treeview.insert(
+                "",
+                "end",
+                iid=resource.uuid,
+                values=(
+                    resource.name,
+                    resource.size,
+                    resource.deleted_at,
+                ),
+            )
+
+def run_interface():
+    window = tkinter.Tk()
+
+    window.title("OsmiumSmartestBackupper")
+    window.configure(bg="white")
+    window.state("zoomed")
+
+    data_table = ttk.Treeview(
+        window,
+        columns=("Name", "Size", "Deleted At"),
+        show="headings",
+        selectmode="none",
+    )
+
+    data_table.bind(
+        "<ButtonRelease-1>",
+        lambda event: toggle_selection(
+            data_table,
+            event,
+        ),
+    )
+
+    data_table.column(
+        "Name",
+        width=100,
+        stretch=True,
+    )
+
+    data_table.column(
+        "Size",
+        width=50,
+        stretch=False,
+    )
+
+    data_table.column(
+        "Deleted At",
+        width=150,
+    )
+
+    data_table.heading(
+        "Name",
+        text="Name",
+    )
+
+    data_table.heading(
+        "Size",
+        text="Size",
+    )
+
+    data_table.heading(
+        "Deleted At",
+        text="Deleted At",
+    )
+
+    data_table.pack(
+        fill="both",
+        expand=True,
+        padx=10,
+        pady=10,
+    )
+
+    menu_bar = tkinter.Menu(window)
+
+    menu_bar.add_command(
+        label="Restore",
+        command=async_handler(
+            restore_selected_resources,data_table
+        )
+    )
+
+
+    window.config(menu=menu_bar)
+
+    window.after(
+        0,
+        async_handler(
+            load_resource_data,treeview=data_table
+            ),
+    )
+
+
     async_mainloop(window)
