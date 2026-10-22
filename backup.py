@@ -17,27 +17,19 @@ from config import SAVED_RESOURCES_DIRECTORY
 
 COMPRESSED_FORMATS = frozenset({
     ".7z",
-    ".avi",
-    ".docx",
-    ".gif",
-    ".img",
-    ".iso",
     ".jpg",
     ".mkv",
     ".mp3",
     ".mp4",
     ".pdf",
     ".png",
-    ".pptx",
     ".rar",
     ".gz",
-    ".xlsx",
     ".zip",
     ".jpeg",
     ".webp",
     ".heic",
     ".webm",
-    ".mov",
     ".flac",
     ".m4a",
     ".ogg",
@@ -49,9 +41,7 @@ COMPRESSED_FORMATS = frozenset({
 
 
 def get_resource_type(resource: Path) -> str:
-    if resource.is_symlink():
-        return "symboliclink"
-    elif resource.is_file():
+    if resource.is_file():
         return "file"
     elif resource.is_dir():
         return "directory"
@@ -64,13 +54,12 @@ def format_resource_size(size: int) -> str:
         return "0 B"
 
     resource_units = ["B", "KB", "MB", "GB", "TB"]
-
-    index = min((int(size).bit_length() - 1) // 10, len(resource_units) - 1)
-    value = round(size / 1024 ** index, 2)
-    if value >= 1024 and index < len(resource_units) - 1:
-        value, index = 1, index + 1
-
-    return f"{value} {resource_units[index]}"
+    index = 0
+    value = float(size)
+    while value >= 1024 and index < len(resource_units) - 1:
+        value /= 1024
+        index += 1
+    return f"{round(value,2)} {resource_units[index]}"
 
 
 def create_backup_copy(
@@ -91,13 +80,13 @@ def create_backup_copy(
                 )
 
             return True
+        else:
+            shutil.copy2(
+                resource,
+                backup_directory / resource_name,
+            )
+            return False
 
-        shutil.copy(
-            resource,
-            backup_directory / resource_name,
-        )
-
-        return False
 
     if resource_type == "directory":
         contains_uncompressed_files = any(
@@ -121,7 +110,7 @@ def create_backup_copy(
         shutil.copytree(
             resource,
             backup_directory / resource_name,
-            dirs_exist_ok=True,
+            symlinks=True
         )
 
         return False
@@ -140,6 +129,20 @@ def show_notification(message: str, title: str) -> None:
 
 async def create_backup():
     resource = Path(sys.argv[1])
+
+    resource_type = await asyncio.to_thread(
+        get_resource_type,
+        resource,
+    )
+
+    if resource_type == "other":
+        await asyncio.to_thread(
+            show_notification,
+            "The unidentified resource was not deleted.",
+            "Error",
+        )
+        return
+
     resource_uuid = str(uuid.uuid4())
     resource_name = resource.name
 
@@ -156,19 +159,6 @@ async def create_backup():
         parents=True,
         exist_ok=True,
     )
-
-    resource_type = await asyncio.to_thread(
-        get_resource_type,
-        resource,
-    )
-
-    if resource_type == "other":
-        await asyncio.to_thread(
-            show_notification,
-            "The unidentified resource was not deleted.",
-            "Error",
-        )
-        return
 
     resource_config = {
         "file": {
@@ -194,13 +184,8 @@ async def create_backup():
             "resource_title": "Directory deletion"
         }
     }
-
-    formatted_size = format_resource_size(
-        await asyncio.to_thread(
-            resource_config[resource_type]["resource_size"]
-        )
-    )
-
+    resource_func = resource_config[resource_type]["resource_size"]
+    formatted_size = format_resource_size(await asyncio.to_thread(resource_func))
     message = resource_config[resource_type]["resource_message"]
 
     title = resource_config[resource_type]["resource_title"]

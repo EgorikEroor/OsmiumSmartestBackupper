@@ -10,5 +10,8 @@ DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_PATH.as_posix()}"
 SOFTWARECLASSESFILES = r'Software\Classes\*'
 SOFTWARECLASSESDIRECTORIES = r'Software\Classes\Directory'
 APP_PATH = f'"{BINARY_DIRECTORY / "backup_app.exe"}" "%1"'
-START_MENU_PROGRAMS = Path(os.environ.get('APPDATA')) / 'Microsoft' / 'Windows' / 'Start Menu' / 'Programs'
+START_MENU_PROGRAMS = (
+    Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+)
 SHORTCUT_PATH = START_MENU_PROGRAMS / 'OsmiumSmartestBackupper.lnk'

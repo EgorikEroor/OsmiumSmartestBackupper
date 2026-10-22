@@ -47,7 +47,6 @@ def unload_resource(
                 dirs_exist_ok=True,
             )
 
-    shutil.rmtree(backup_directory)
 
 
 async def restore_backup(
@@ -64,10 +63,11 @@ async def restore_backup(
         )
 
         if directory_exists:
-            is_archived, resource_name = await session.execute(
+            result = await session.execute(
                 select(Resource.is_archived, Resource.name)
                 .where(Resource.uuid == resource_uuid)
-            ).first()
+            )
+            is_archived, resource_name = result.first()
 
             await asyncio.to_thread(
                 unload_resource,
@@ -84,3 +84,5 @@ async def restore_backup(
         )
 
         await session.commit()
+
+        shutil.rmtree(backup_directory)

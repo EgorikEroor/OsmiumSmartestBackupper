@@ -7,9 +7,8 @@ from async_tkinter_loop import async_handler
 from async_tkinter_loop import async_mainloop
 from sqlalchemy import select
 
-from database import Resource
+from database import Resource,async_session
 from restore import restore_backup
-from config import async_session
 
 
 def toggle_selection(
