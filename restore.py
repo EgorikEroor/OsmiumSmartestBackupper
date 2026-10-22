@@ -7,8 +7,8 @@ from sqlalchemy import delete
 from sqlalchemy import select
 
 
-from database import Resource
-from config import  SAVED_RESOURCES_DIRECTORY, async_session
+from database import Resource,async_session
+from config import  SAVED_RESOURCES_DIRECTORY
 
 
 

@@ -3,10 +3,8 @@ import datetime
 import random
 import shutil
 import sys
-import time
 import uuid
 from pathlib import Path
-import math
 import py7zr
 from plyer import notification
 from send2trash import send2trash
